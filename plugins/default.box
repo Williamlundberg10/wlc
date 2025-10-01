@@ -1,0 +1,89 @@
+plugin(
+    name("Default HTML Tags");
+    author("Core Team");
+    version("5.0");
+    description("Provides standard HTML elements for full web pages");
+);
+
+define Html(
+    tag("html");
+    content("{{children}}");
+    allow_children("Head","Body");
+);
+
+define Head(
+    tag("head");
+    content("{{children}}");
+    allow_children("Title","Link","Script");
+);
+
+define Body(
+    tag("body");
+    content("{{children}}");
+    allow_children("*");
+);
+
+define Title(
+    tag("title");
+    content("{{text}}");
+    allow_attrs("*");
+);
+
+define Link(
+    tag("link");
+    selfclosing("true");
+    attr("rel");
+    attr("href");
+    attr("type");
+    allow_attrs("rel","href","type");
+);
+
+define Script(
+    tag("script");
+    content("{{text}}");
+    attr("src");
+    allow_attrs("src");
+);
+
+define H1(
+    tag("h1");
+    content("{{text}}");
+    allow_attrs("*");
+);
+
+define H2(
+    tag("h2");
+    content("{{text}}");
+    allow_attrs("*");
+);
+
+define P(
+    tag("p");
+    content("{{text}}")
+    allow_attrs("*");
+);
+
+define Button(
+    tag("button");
+    content("{{text}}");
+    attr("id");
+    attr("onclick");
+    allow_attrs("*");
+);
+
+define Img(
+    tag("img");
+    selfclosing("true");
+    attr("src");
+    attr("alt");
+    attr("class");
+    allow_attrs("src","alt","class");
+);
+
+define A(
+    tag("a");
+    content("{{text}}");
+    attr("href");
+    attr("target")
+    allow_attrs("href","target");
+);

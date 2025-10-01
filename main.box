@@ -1,0 +1,27 @@
+Html(
+    Head(
+        Title(text("My "));
+        Link(rel("stylesheet"); href("styles.css"); type("text/css"))
+    );
+
+    Body(
+        Card(
+            H1(text("Hello!"));
+            P(text("This card has default CSS and JS."))
+        );
+        Card(
+            H1(text("Willia!"))
+        );
+        H1(
+            text("Welcome!");
+            onclick("alert('hi')")
+        );
+        P(text("This page was written in my custom DSL."));
+        Button(
+            text("Click Me");
+            onclick("alert('hi')")
+        );
+        Img(src("logo.png"); alt("Logo"); class("logo"));
+        Script(src("app.js"))
+    )
+)

@@ -1,0 +1,54 @@
+<html>
+  <head>
+<style>
+.card {
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 10px;
+            background: #f9f9f9;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        .card:hover {
+            background: #fff;
+        }
+</style>
+
+      <title text="My ">
+            My
+          </title>
+          <link rel="stylesheet" href="styles.css" type="text/css" />
+    </head>
+    <body>
+      <div class="card">
+            <h1 text="Hello!">
+                    Hello!
+                  </h1>
+                  <p text="This card has default CSS and JS.">
+                    This card has default CSS and JS.
+                  </p>
+          </div>
+          <div class="card">
+            <h1 text="Willia!">
+                    Willia!
+                  </h1>
+          </div>
+          <h1 text="Welcome!" onclick="alert('hi')">
+            Welcome!
+          </h1>
+          <p text="This page was written in my custom DSL.">
+            This page was written in my custom DSL.
+          </p>
+          <button onclick="alert('hi')">
+            Click Me
+          </button>
+          <img src="logo.png" alt="Logo" class="logo" />
+          <script src="app.js"></script>
+    <script>
+document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => {
+        console.log('Card clicked:', card);
+    });
+});
+</script>
+</body>
+</html>
