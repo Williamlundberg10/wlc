@@ -1,0 +1,23 @@
+name("Card Component")
+author("Example Author")
+version("1.0")
+description("A simple card component example in .box format")
+
+define Card(
+  tag("div")
+  content("<div class="card">{{children}}</div>")
+  attr("class")
+  default_css("
+    .card {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    }
+    .card h2 { margin: 0 0 8px 0; }
+    ")
+  default_script("")
+  allow_children("*")
+  allow_attrs("*")
+  deny_attrs()
+)

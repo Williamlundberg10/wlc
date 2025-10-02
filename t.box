@@ -1,19 +1,24 @@
-HTML(
+Html(
     Head(
-        Title(text("My"));
-        style("
+        Title( text("hej") );
+        Style("
             .p{
-                color: #cf0808ff
+                color: #cf0808ff;
+                font-size: 36px;
             }
         ")
     );
-
     Body(
-        Panel()
-        div(
+        Card(
+            H1(
+                text("hej")
+            )
+        );
+        Div(
             text("hej");
-            class("hww");
-            card()
+            class("P");
+        );
+        Hej{"q1","q2","q3","q4"}(
         )
     )
 )

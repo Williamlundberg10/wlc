@@ -1,0 +1,16 @@
+{
+  "Html": "#FF5555",
+  "Head": "#50FA7B",
+  "Body": "#8BE9FD",
+  "Title": "#FFB86C",
+  "Link": "#F1FA8C",
+  "Script": "#BD93F9",
+  "H1": "#FF79C6",
+  "H2": "#FF79C6",
+  "P": "#F8F8F2",
+  "Button": "#FF6E6E",
+  "Img": "#50FA7B",
+  "Style": "#8E24AA",
+  "Div": "#FF8A65",
+  "A": "#8BE9FD"
+}

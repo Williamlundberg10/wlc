@@ -5,27 +5,9 @@ plugin(
     description("Adds a Card with default CSS and hover effect");
 );
 
-define Card(
-            tag("div");
-            content("{{children}}");
-            default_css(".card {
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            padding: 10px;
-            background: #f9f9f9;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-        }
-        .card:hover {
-            background: #fff;
-        }
-");
-    default_script("document.querySelectorAll('.card').forEach(card => {\n    card.addEventListener('click', () => {\n        console.log('Card clicked:', card);\n    });\n});\n");
-    attr("class");
-);
-
 define Test(
     tag("a");
-    content("<div>{{children}}</div>");
+    content("{{data_list}}");
     attr("href");
     default_css(".test {
         display: flex;

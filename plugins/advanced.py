@@ -12,13 +12,17 @@ meta = {
 # It can register components by adding entries to the provided registry dict.
 
 def register(registry):
-    registry["card"] = {
+
+    registry["Hej"] = {
         "tag": "div",
-        "content": "<div class=\"card\">{{children}}</div>",
+        # Demonstrate helpers: render an HTML list and JSON, then include children
+        "content": "<div class='hej-data'>\n<h4>Data list</h4>\n{{data_list}}\n</div>\n<div class='hej-children'>{{children}}</div>\n<pre class='hej-json'>{{data_json}}</pre>",
         "selfclosing": False,
         "attrs": ["class"],
         "default_css": ".card{padding:10px;border:1px solid #ddd}",
-        "default_script": "",
+    # Use the JSON placeholder directly; the compiler will substitute a JSON-quoted
+    # value (e.g. "q1"), so we don't wrap it again.
+    "default_script": 'alert({{data_json[0]}})',
         "allow_children": ["*"],
         "allow_attrs": ["*"],
         "deny_attrs": []

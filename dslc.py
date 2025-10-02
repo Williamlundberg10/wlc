@@ -1,4 +1,4 @@
-import os, re, sys
+import os, re, sys, json
 
 # Simple DSL compiler for HTML-like pages.
 # Language rules:
@@ -104,7 +104,19 @@ def load_plugins(folder="plugins"):
                 # call register if available
                 if hasattr(mod, 'register') and callable(getattr(mod, 'register')):
                     try:
+                        # record keys before registration
+                        before_keys = set(plugin_registry.keys())
                         mod.register(plugin_registry)
+                        # normalize any new keys to lowercase for consistent lookup
+                        new_keys = set(plugin_registry.keys()) - before_keys
+                        for k in list(new_keys):
+                            if k.lower() != k:
+                                # avoid overwriting existing lowercase key
+                                if k.lower() in plugin_registry:
+                                    # merge or prefer existing lowercase entry; here we overwrite
+                                    plugin_registry.pop(k)
+                                else:
+                                    plugin_registry[k.lower()] = plugin_registry.pop(k)
                     except Exception as e:
                         print(f"Error registering plugin {filename}: {e}")
             except Exception as e:
@@ -119,7 +131,8 @@ def load_plugins(folder="plugins"):
 # ---------------------------
 def tokenize(code):
     # allow quoted strings to span multiple lines (needed for style("...\n...") blocks)
-    tokens = re.findall(r'[A-Za-z_][A-Za-z0-9_]*|\(|\)|\"(?:.|\n)*?\"|;|>', code)
+    # also tokenize braces and commas for data-list syntax: Name{"a","b"}(...)
+    tokens = re.findall(r'[A-Za-z_][A-Za-z0-9_]*|\{|\}|,|\(|\)|\"(?:.|\n)*?\"|;|>', code)
     return tokens
 
 # ---------------------------
@@ -135,6 +148,20 @@ def parse(tokens):
 
         name = tokens[pos]
         pos += 1
+
+        # optional data list like Name{"a","b"}
+        data_list = []
+        if pos < len(tokens) and tokens[pos] == "{":
+            pos += 1
+            while pos < len(tokens) and tokens[pos] != "}":
+                if tokens[pos].startswith('"'):
+                    data_list.append(tokens[pos].strip('"'))
+                if pos < len(tokens) and tokens[pos] == ",":
+                    pos += 1
+                    continue
+                pos += 1
+            if pos < len(tokens) and tokens[pos] == "}":
+                pos += 1
 
         props = []
         children = []
@@ -194,8 +221,11 @@ def parse(tokens):
                     pos += 1
             pos += 1  # skip ')'
 
-        return {"name": name, "props": props, "children": children}
+        # always return an element dict
+        element = {"name": name, "props": props, "children": children, "data": data_list}
+        return element
 
+    # collect top-level elements until tokens are exhausted
     elements = []
     while pos < len(tokens):
         elem = parse_element()
@@ -253,6 +283,14 @@ def compile_element(element, indent=0):
             # otherwise allowed
             final_props[k] = v
 
+        # attach parsed data list as a special 'data' placeholder and data-* attributes
+        data_list = element.get("data", []) or []
+        if data_list:
+            final_props["data"] = ",".join(data_list)
+            # also add data- attributes as data-1, data-2... if allowed
+            for idx, item in enumerate(data_list, start=1):
+                final_props[f"data-{idx}"] = item
+
         # build attributes string using final_props and allowed_attrs declared in plugin (fallback)
         attr_allowed_set = set(a.lower() for a in (allowed_attrs or []))
         if allow_attrs and not ("*" in allow_attrs):
@@ -268,6 +306,34 @@ def compile_element(element, indent=0):
 
         # replace placeholders in content (use final_props)
         content = content_template
+
+        # helper: render data list as an HTML <ul> for plugin templates via {{data_list}}
+        data_list_vals = element.get("data", []) or []
+        data_json = json.dumps(data_list_vals)
+        if data_list_vals:
+            data_list_html = "<ul>\n" + "\n".join(f"<li>{item}</li>" for item in data_list_vals) + "\n</ul>"
+            # replace simple helpers
+            content = content.replace("{{data_list}}", data_list_html)
+            content = content.replace("{{data_json}}", data_json)
+
+        # support indexed access in templates: {{data_json[0]}} -> JSON-encoded element (including quotes)
+        def _replace_data_json_index(m):
+            idx = int(m.group(1))
+            if 0 <= idx < len(data_list_vals):
+                return json.dumps(data_list_vals[idx])
+            return ""
+
+        content = re.sub(r"\{\{data_json\[(\d+)\]\}\}", _replace_data_json_index, content)
+
+        # support {{data[0]}} -> raw item string (no JSON quoting)
+        def _replace_data_index(m):
+            idx = int(m.group(1))
+            if 0 <= idx < len(data_list_vals):
+                return data_list_vals[idx]
+            return ""
+
+        content = re.sub(r"\{\{data\[(\d+)\]\}\}", _replace_data_index, content)
+
         for k,v in final_props.items():
             content = content.replace(f"{{{{{k}}}}}", v)
 
@@ -368,11 +434,44 @@ def compile_to_html(ast):
         if name in plugin_registry:
             info = plugin_registry[name]
             css = info.get("default_css","" ).strip()
-            js = info.get("default_script","" ).strip()
+            js_template = info.get("default_script","" ).strip()
             if css and css not in used_css:
                 used_css.append(css)
-            if js and js not in used_scripts:
-                used_scripts.append(js)
+            # process default_script per-element so placeholders like {{data_json}} can be filled
+            if js_template:
+                data_vals = element.get("data", []) or []
+                data_json = json.dumps(data_vals)
+                # escaped JSON for safe insertion inside double-quoted JS string
+                data_json_esc = data_json.replace('"', '\\"')
+                # handle patterns where template author wrapped the placeholder in quotes
+                js = js_template
+                # replace "{{data_json}}" occurrences with escaped string literal
+                js = js.replace('"{{data_json}}"', '"' + data_json_esc + '"')
+                js = js.replace("'{{data_json}}'", "'" + data_json_esc + "'")
+                # also support explicit escaped placeholder
+                js = js.replace('{{data_json_esc}}', data_json_esc)
+                # fallback raw JSON replacement
+                js = js.replace('{{data_json}}', data_json)
+
+                # support indexed placeholders in script: {{data_json[0]}} -> JSON-quoted nth item
+                def _js_replace_data_json_index(m):
+                    idx = int(m.group(1))
+                    if 0 <= idx < len(data_vals):
+                        return json.dumps(data_vals[idx])
+                    return ''
+
+                js = re.sub(r"\{\{data_json\[(\d+)\]\}\}", _js_replace_data_json_index, js)
+
+                # support {{data[0]}} -> raw nth item
+                def _js_replace_data_index(m):
+                    idx = int(m.group(1))
+                    if 0 <= idx < len(data_vals):
+                        return data_vals[idx]
+                    return ''
+
+                js = re.sub(r"\{\{data\[(\d+)\]\}\}", _js_replace_data_index, js)
+                if js and js not in used_scripts:
+                    used_scripts.append(js)
         for c in element["children"]:
             collect_defaults(c)
 

@@ -1,1 +1,9 @@
-Test(text("hej"); id("app"))
+Html(
+    Head(
+        Title(text(""));
+    );
+    Body(
+        H1(text(""));
+        P(text(""));
+    );
+);
