@@ -86,6 +86,30 @@ def load_plugins(folder="plugins"):
         if filename.endswith(".box") and filename != "default.box":
             load_plugin_file(os.path.join(folder, filename))
 
+    # Load python-based plugins (.py)
+    for filename in os.listdir(folder):
+        if filename.endswith('.py'):
+            path = os.path.join(folder, filename)
+            try:
+                # import plugin as module by path
+                import importlib.util
+                spec = importlib.util.spec_from_file_location(f"plugins.{filename[:-3]}", path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                # collect metadata if available
+                if hasattr(mod, 'metadata') and callable(getattr(mod, 'metadata')):
+                    plugin_metadata.append(mod.metadata())
+                elif hasattr(mod, 'meta'):
+                    plugin_metadata.append(mod.meta)
+                # call register if available
+                if hasattr(mod, 'register') and callable(getattr(mod, 'register')):
+                    try:
+                        mod.register(plugin_registry)
+                    except Exception as e:
+                        print(f"Error registering plugin {filename}: {e}")
+            except Exception as e:
+                print(f"Error loading python plugin {filename}: {e}")
+
     print("Loaded plugins:")
     for p in plugin_metadata:
         print(f"- {p['name']} v{p['version']} by {p['author']}")

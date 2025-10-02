@@ -13,17 +13,7 @@ HTML(
         div(
             text("hej");
             class("hww");
-            h1(
-                text("hej");
-                class("123");
-                div(
-                    text("tesssss")
-                )
-            );
-            h1(
-                text("gg");
-                class("p");
-            )
+            card()
         )
     )
 )
