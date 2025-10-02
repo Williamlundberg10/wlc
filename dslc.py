@@ -94,7 +94,8 @@ def load_plugins(folder="plugins"):
 # Tokenizer
 # ---------------------------
 def tokenize(code):
-    tokens = re.findall(r'[A-Za-z_][A-Za-z0-9_]*|\(|\)|\".*?\"|;|>', code)
+    # allow quoted strings to span multiple lines (needed for style("...\n...") blocks)
+    tokens = re.findall(r'[A-Za-z_][A-Za-z0-9_]*|\(|\)|\"(?:.|\n)*?\"|;|>', code)
     return tokens
 
 # ---------------------------
@@ -124,16 +125,31 @@ def parse(tokens):
                     if pos + 1 < len(tokens) and tokens[pos + 1] == "(":
                         # look ahead: if token after '(' is a quoted string, it's a property
                         if pos + 2 < len(tokens) and isinstance(tokens[pos + 2], str) and tokens[pos + 2].startswith('"'):
-                            # property
-                            pos += 2  # move to the value token
-                            value = tokens[pos].strip('"')
-                            pos += 1
-                            # consume closing ')'
-                            if pos < len(tokens) and tokens[pos] == ")":
+                            # value looks like a quoted string. By default this is a property,
+                            # but if the key matches a loaded plugin name, treat it as a child
+                            # element with a text prop (e.g. style("...") -> <style>...</style>).
+                            if key.lower() in plugin_registry:
+                                # create child element with text prop
+                                pos += 2  # move to the value token
+                                value = tokens[pos].strip('"')
                                 pos += 1
-                            props.append((key, value))
-                            if pos < len(tokens) and tokens[pos] == ";":
+                                # consume closing ')'
+                                if pos < len(tokens) and tokens[pos] == ")":
+                                    pos += 1
+                                children.append({"name": key, "props": [("text", value)], "children": []})
+                                if pos < len(tokens) and tokens[pos] == ";":
+                                    pos += 1
+                            else:
+                                # property
+                                pos += 2  # move to the value token
+                                value = tokens[pos].strip('"')
                                 pos += 1
+                                # consume closing ')'
+                                if pos < len(tokens) and tokens[pos] == ")":
+                                    pos += 1
+                                props.append((key, value))
+                                if pos < len(tokens) and tokens[pos] == ";":
+                                    pos += 1
                         else:
                             # Treat as a nested child element (allow nesting)
                             child = parse_element()
@@ -191,7 +207,8 @@ def compile_element(element, indent=0):
                 # we'll use this updated props_dict for rendering attributes and placeholder substitution
         else:
             props_dict = dict(element["props"])
-        had_children_placeholder = "{{children}}" in content_template
+        # treat both {{children}} and {{*}} as placeholders that include compiled children
+        had_children_placeholder = ("{{children}}" in content_template) or ("{{*}}" in content_template)
         selfclosing = info["selfclosing"]
         allowed_attrs = info["attrs"]
         # enforce attribute allow/deny rules
@@ -219,10 +236,11 @@ def compile_element(element, indent=0):
             attr_allowed_set = set(a.lower() for a in allow_attrs)
 
         # If neither allow_attrs nor plugin attrs restrict, allow all final_props
+        # NOTE: treat the special property 'text' as content only — do not render it as an HTML attribute.
         if attr_allowed_set:
-            attr_str = " ".join(f'{k}="{v}"' for k,v in final_props.items() if k.lower() in attr_allowed_set).strip()
+            attr_str = " ".join(f'{k}="{v}"' for k,v in final_props.items() if k.lower() in attr_allowed_set and k.lower() != 'text').strip()
         else:
-            attr_str = " ".join(f'{k}="{v}"' for k,v in final_props.items()).strip()
+            attr_str = " ".join(f'{k}="{v}"' for k,v in final_props.items() if k.lower() != 'text').strip()
 
         # replace placeholders in content (use final_props)
         content = content_template
@@ -246,8 +264,24 @@ def compile_element(element, indent=0):
         child_lines = [compile_element(c, indent + 1) for c in filtered_children]
         children_html_inner = "\n".join(child_lines)
 
-        # insert children into content if template requested them
-        if had_children_placeholder:
+        # insert children/text into content if template requested them
+        # support three placeholders:
+        #  - {{children}}  => insert compiled children only
+        #  - {{text}}      => replaced earlier from final_props
+        #  - {{*}}         => insert text (if any) followed by compiled children
+        if "{{*}}" in content_template:
+            text_prop = final_props.get("text", "").strip()
+            combined = ""
+            if text_prop:
+                # indent text like other content
+                combined += text_prop
+            if children_html_inner:
+                if combined:
+                    combined = combined + "\n" + children_html_inner
+                else:
+                    combined = children_html_inner
+            content = content.replace("{{*}}", combined)
+        elif had_children_placeholder:
             # replace children placeholder in the already placeholder-substituted content
             content = content.replace("{{children}}", children_html_inner)
         else:
@@ -264,6 +298,9 @@ def compile_element(element, indent=0):
         else:
             # multi-line tag if we have content or children
             if content or child_lines:
+                # if we have only simple single-line content and no child elements, render inline
+                if content and not child_lines and "\n" not in content:
+                    return f"{pad}<{tag}{' ' + attr_str if attr_str else ''}>{content}</{tag}>"
                 parts = [f"{pad}<{tag}{' ' + attr_str if attr_str else ''}>"]
                 if content:
                     for line in content.splitlines():
@@ -276,8 +313,14 @@ def compile_element(element, indent=0):
             else:
                 return f"{pad}<{tag}{' ' + attr_str if attr_str else ''}></{tag}>"
     else:
+        # non-plugin element: compile its children and render text (if any)
         text = props_dict.get("text", "").strip()
+        child_lines = [compile_element(c, indent + 1) for c in raw_children]
+        children_html_inner = "\n".join(child_lines)
         if text or child_lines:
+            # single-line text with no children -> inline tag
+            if text and not child_lines and "\n" not in text:
+                return f"{pad}<{name}>{text}</{name}>"
             parts = [f"{pad}<{name}>"]
             if text:
                 for line in text.splitlines():

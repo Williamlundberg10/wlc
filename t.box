@@ -1,0 +1,29 @@
+HTML(
+    Head(
+        Title(text("My"));
+        style("
+            .p{
+                color: #cf0808ff
+            }
+        ")
+    );
+
+    Body(
+        Panel()
+        div(
+            text("hej");
+            class("hww");
+            h1(
+                text("hej");
+                class("123");
+                div(
+                    text("tesssss")
+                )
+            );
+            h1(
+                text("gg");
+                class("p");
+            )
+        )
+    )
+)

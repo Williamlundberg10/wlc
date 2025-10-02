@@ -14,12 +14,18 @@ define Html(
 define Head(
     tag("head");
     content("{{children}}");
-    allow_children("Title","Link","Script");
+    allow_children("Title","Link","Script","Style");
 );
 
 define Body(
     tag("body");
-    content("{{children}}");
+    content("{{*}}");
+    allow_children("*");
+);
+
+define Div(
+    tag("div");
+    content("{{*}}");
     allow_children("*");
 );
 
@@ -45,28 +51,33 @@ define Script(
     allow_attrs("src");
 );
 
+define Style(
+    tag("style");
+    content("{{text}}");
+);
+
 define H1(
     tag("h1");
-    content("{{text}}");
+    content("{{*}}");
     allow_attrs("*");
 );
 
 define H2(
     tag("h2");
-    content("{{text}}");
+    content("{{*}}");
     allow_attrs("*");
 );
 
 define P(
     tag("p");
-    content("{{text}}")
+    content("{{*}}");
     allow_attrs("*");
 );
 
 define Button(
     tag("button");
-    content("{{text}}");
-    attr("id");
+    content("{{*}}");
+    attr("id");  
     attr("onclick");
     allow_attrs("*");
 );

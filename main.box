@@ -14,9 +14,10 @@ Html(
         );
         H1(
             text("Welcome!");
-            onclick("alert('hi')")
+            onclick("alert('hi')");
+            class("123")
         );
-        P(text("This page was written in my custom DSL."));
+        P(text("This page was written."));
         Button(
             text("Click Me");
             onclick("alert('hi')")
